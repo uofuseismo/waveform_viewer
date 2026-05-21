@@ -50,8 +50,14 @@ jobs:
 
       - name: 📦 Prepare artifacts
         run: |
-          mkdir -p artifacts-ubuntu
-          cp build/linux/x64/release/bundle/waveform_viewer artifacts-ubuntu/
+          mkdir -p artifacts
+          cp build/linux/x64/release/bundle/waveform_viewer artifacts
+
+      - name: Upload Ubuntu artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: artifacts-u24
+          path: artifacts-ubuntu
 
       # ─────────────── ONLY ON TAGS ───────────────
       - name: 🏷️ Create or update Release
@@ -93,5 +99,12 @@ jobs:
 
       - name: 📦 Prepare artifacts
         run: |
-          mkdir -p artifacts-arm-macos
+          mkdir -p artifacts
+          cp -r build/macos/Build/Products/Release/ artifacts/
+
+      - name: Upload MacOS ARM artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: artifacts-macos-arm
+          path: artifacts
 
