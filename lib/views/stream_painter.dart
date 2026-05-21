@@ -1,0 +1,263 @@
+import 'dart:ui';
+import 'package:flutter/material.dart';
+import '../models/data_layer.dart';
+
+class PlotOptions {
+  final Color backgroundColor;
+  final Color penColor;
+  final double penStrokeWidth;
+
+  final Color majorTicksColor;
+  final Color minorTicksColor;
+
+  final Duration plotDuration;
+
+  PlotOptions({this.backgroundColor = Colors.white,
+               this.penColor = Colors.black,
+               this.penStrokeWidth = 1,
+               this.majorTicksColor = Colors.black,
+               this.minorTicksColor = Colors.black,
+               this.plotDuration = const Duration(minutes: 2)});
+
+}
+
+class StreamPainter extends StatefulWidget {
+  const StreamPainter({super.key});
+
+  @override
+  State createState() => _StreamPainterState(); 
+}
+
+class _StreamPainterState extends State<StreamPainter> {
+  late PlotOptions mPlotOptions;
+  late Stream mStream;
+
+  @override
+  void initState() {
+    super.initState();
+    setState( () {
+      mPlotOptions = PlotOptions();
+      mStream = createRandomStream();
+    });
+  }
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 600,
+      height: 200,
+      child: CustomPaint(painter: _StreamPainter(mPlotOptions, mStream)),
+    );
+  }
+}
+
+class _StreamPainter extends CustomPainter {
+  final PlotOptions mPlotOptions;
+  final Stream _mStream;
+  late DateTime _plotStartTime;
+  late DateTime _plotEndTime;
+  late int _plotStartTimeInMicroSeconds;
+  //late double mInverseSpatialWidth;
+  late double mPlotWidth;
+  late double _transformSpaceToTimeInMicroseconds;
+  late double _transformTimeInMicroSecondsToSpace;
+
+  _StreamPainter(this.mPlotOptions, this._mStream);
+
+  /// This is called first and is in the background
+  @override 
+  void paint(Canvas canvas, Size size) {
+    mPlotWidth = (size.width - 1) - 1; // x1 - x0
+    //mInverseSpatialWidth = 1;
+    _transformSpaceToTimeInMicroseconds = 1;
+    if (mPlotWidth > 1) {
+      //mInverseSpatialWidth = 1/(mPlotWidth - 2);
+      _transformSpaceToTimeInMicroseconds
+       = mPlotOptions.plotDuration.inMicroseconds/mPlotWidth;
+    }
+
+    //var stream = createRandomStream();
+
+    double height = 220;
+    double width = size.width; 
+    int plotWindowMicroSeconds = mPlotOptions.plotDuration.inMicroseconds;
+    final endTime = DateTime.now();
+    final endTimeMicroSeconds = endTime.microsecondsSinceEpoch;
+    _plotStartTimeInMicroSeconds = endTimeMicroSeconds - plotWindowMicroSeconds;
+
+    _transformTimeInMicroSecondsToSpace = 1;
+    if (mPlotOptions.plotDuration.inMicroseconds > 0) {
+      _transformTimeInMicroSecondsToSpace
+       = mPlotWidth/mPlotOptions.plotDuration.inMicroseconds;
+    }
+
+
+    _plotStartTime
+      = DateTime.fromMicrosecondsSinceEpoch(_plotStartTimeInMicroSeconds);
+    _plotEndTime
+      = DateTime.fromMicrosecondsSinceEpoch(
+          _plotStartTimeInMicroSeconds + plotWindowMicroSeconds 
+        );
+
+
+    // Draw the background
+    final plotOptions = PlotOptions(backgroundColor: Colors.grey);
+    drawBackground(canvas, width, height, plotOptions);
+
+    // Draw the stream name
+    drawStreamName(canvas, height, _mStream.streamIdentifier);
+
+    // Draw the ticks
+    drawTicksDriver(canvas, width, height);
+
+    // Draw the seismgoram
+    drawSeismogram(canvas, width, height);
+
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) {
+    return false;
+  }
+
+  void drawMajorTicks(Canvas canvas, double width, double height, int nTicks) {
+    drawTicks(canvas, width, height, nTicks, 0.050, 1.00, true);
+  }
+
+  void drawMinorTicks(Canvas canvas, double width, double height, int nTicks) {
+    drawTicks(canvas, width, height, nTicks, 0.025, 0.75, false);
+  }
+
+  void drawTicksDriver(Canvas canvas, double width, double height) {
+    int nMajorTicks = 5;
+    int nMinorTicks = nMajorTicks*10 - 1;
+    drawMinorTicks(canvas, width, height, nMinorTicks);
+    drawMajorTicks(canvas, width, height, nMajorTicks);
+  }
+
+  int xToTimeInMicroseconds(double x) {
+    final x0 = 1;
+    double y0 = _plotStartTime.microsecondsSinceEpoch.toDouble();
+    int y = (y0 + (x - x0)*_transformSpaceToTimeInMicroseconds).floor();
+    return y;
+  }
+
+  double timeInMicroSecondsToX(int timeInMicroSeconds) {
+    double x0 = 1; // Start plot at 1
+    double t0 = _plotStartTimeInMicroSeconds.toDouble();
+    double x = (x0 + (timeInMicroSeconds - t0)*_transformTimeInMicroSecondsToSpace);
+    return x; 
+  }
+
+  void drawTicks(Canvas canvas, double width, double height, 
+                 int nTicks, double tickFraction, double strokeWidth,
+                 bool addTimeLabel) {
+    var tickHeight = height*tickFraction;
+    double dx = (width - 1)/(nTicks - 1);
+    var ticksPath = Path();
+    for (var i = 0; i < nTicks; ++i) {
+      double xOffset = (i*dx).floor() + 1;
+      ////debugPrint('$xOffset $dx $nTicks $width');
+      // Draw top
+      ticksPath.moveTo(xOffset, 0);
+      ticksPath.lineTo(xOffset, 0 + tickHeight);
+
+      // Draw bottom
+      ticksPath.moveTo(xOffset, height);
+      ticksPath.lineTo(xOffset, height - tickHeight);
+
+      if (addTimeLabel && i < nTicks - 1) {
+        final textStyle = TextStyle(color: Colors.black);
+        final paragraphConstraints = ParagraphConstraints(width: 50);
+        final paragraphStyle = ParagraphStyle(fontSize: 12, textAlign: TextAlign.left);
+        var paragraphBuilder = ParagraphBuilder(paragraphStyle);
+        //paragraphBuilder.pushStyle(textStyle);
+
+        var tickTimeInMicroseconds = xToTimeInMicroseconds(xOffset); 
+        var tickTime = DateTime.fromMicrosecondsSinceEpoch(tickTimeInMicroseconds);
+        int hour = tickTime.hour;
+        var sHour = hour.toString();
+        if (hour < 10) {
+          sHour = '0$hour';
+        }
+        var minute = tickTime.minute;
+        var sMinute = minute.toString();
+        if (minute < 10) {
+          sMinute = '0$minute';
+        }
+        var second = tickTime.second;
+        var sSecond = second.toString();
+        if (second < 10) {
+          sSecond = '0$second';
+        }
+        var label = '$sHour:$sMinute:$sSecond';
+
+        paragraphBuilder.addText(label);
+        var paragraph = paragraphBuilder.build(); 
+        paragraph.layout(paragraphConstraints);
+        canvas.drawParagraph(paragraph, Offset(xOffset, height*0.90)); 
+      }
+    }
+    final tickMarksPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..color = Colors.black
+      ..isAntiAlias = false
+      ..strokeWidth = strokeWidth;
+    canvas.drawPath(ticksPath, tickMarksPaint);
+  }
+
+  void drawBackground(Canvas canvas, double width, double height, PlotOptions plotOptions) {
+    /// Draw the background
+    final backgroundPaint = Paint()..color = plotOptions.backgroundColor;
+    canvas.drawRect(Rect.fromPoints(Offset.zero, Offset(width, height)),
+                    backgroundPaint);    
+  }
+
+  void drawStreamName(Canvas canvas, double height, StreamIdentifier identifier) {
+      var text = identifier.toString();
+      //if (text.isEmpty){return;}
+      const double xOffset = 10;
+      var yOffset = height*0.1;
+      final paragraphConstraints = ParagraphConstraints(width: 120);
+      final paragraphStyle
+        = ParagraphStyle(fontSize: 15,
+                         textAlign: TextAlign.left,
+                        );
+      var paragraphBuilder = ParagraphBuilder(paragraphStyle);
+
+      paragraphBuilder.addText(text);
+      var paragraph = paragraphBuilder.build(); 
+      paragraph.layout(paragraphConstraints);
+      //print(xOffset);
+      //print(yOffset);
+      canvas.drawParagraph(paragraph, Offset(xOffset, yOffset)); 
+  }
+
+  void drawSeismogram(Canvas canvas, double width, double height) {
+    for (var packet in _mStream.packets) {
+      drawPacket(canvas, width, height, packet);
+    }
+  }
+
+  void drawPacket(Canvas canvas, double width, double height, Packet packet) {
+    var path = Path(); 
+    for (var i = 0; i < packet.data.length - 1; i++) {
+      var t0 = packet.startTimeMuS + i*packet.samplingPeriodInMicroSeconds;
+      var t1 = t0 + packet.samplingPeriodInMicroSeconds;
+      double x0 = timeInMicroSecondsToX(t0); 
+      double x1 = timeInMicroSecondsToX(t1);
+      double y0 = 50 - packet.data[i]/2;
+      double y1 = 50 - packet.data[i + 1]/2;
+      path.moveTo(x0, y0);
+      path.lineTo(x1, y1);
+    }
+    final linePaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..color = Colors.black
+      ..isAntiAlias = false
+      ..strokeWidth = 1;
+    canvas.drawPath(path, linePaint);
+  }
+
+
+}
+
