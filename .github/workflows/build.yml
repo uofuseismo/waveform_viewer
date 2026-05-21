@@ -50,8 +50,8 @@ jobs:
 
       - name: 📦 Prepare artifacts
         run: |
-          mkdir -p artifacts
-          cp build/linux/x64/release/bundle/waveform_viewer artifacts/
+          mkdir -p artifacts-ubuntu
+          cp build/linux/x64/release/bundle/waveform_viewer artifacts-ubuntu/
 
       # ─────────────── ONLY ON TAGS ───────────────
       - name: 🏷️ Create or update Release
@@ -60,7 +60,7 @@ jobs:
         with:
           tag:       ${{ github.ref_name }}
           name:      Release ${{ github.ref_name }}
-          artifacts: artifacts/waveform_viewer
+          artifacts: artifacts-ubuntu/waveform_viewer
           token:     ${{ secrets.GITHUB_TOKEN }}
  
   build_and_release_macos: 
@@ -89,5 +89,9 @@ jobs:
         run: flutter test --coverage
 
       - name: Build MacOS
-        run: flutter build macos --release --no-codesign
+        run: flutter build macos --release
+
+      - name: 📦 Prepare artifacts
+        run: |
+          mkdir -p artifacts-arm-macos
 
