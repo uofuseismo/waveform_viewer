@@ -58,7 +58,7 @@ jobs:
       - name: 📦 Prepare artifacts
         run: |
           mkdir -p artifacts
-          cp build/linux/x64/release/bundle/waveform_viewer artifacts
+          cp -r build/linux/x64/release/bundle/ artifacts
 
       - name: Upload Ubuntu artifacts
         uses: actions/upload-artifact@v7
