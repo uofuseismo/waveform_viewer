@@ -56,8 +56,8 @@ jobs:
       - name: Upload Ubuntu artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: artifacts-u24
-          path: artifacts-ubuntu
+          name: artifacts-ubuntu-x64
+          path: artifacts
 
       # ─────────────── ONLY ON TAGS ───────────────
       - name: 🏷️ Create or update Release
