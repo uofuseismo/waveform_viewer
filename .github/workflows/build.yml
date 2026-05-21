@@ -111,6 +111,7 @@ jobs:
   build_and_release_windows:
     runs-on: windows-latest
 
+    steps:
       - name: 📂 Checkout code
         uses: actions/checkout@v6
 
