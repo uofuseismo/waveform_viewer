@@ -23,8 +23,10 @@ class Stream {
   void addPacket(Packet packet, {int maxHistoryMuS = 5 * 60 * 1000000}) {
     if (packet.data.isEmpty) return;
     packets.add(packet);
-    if (packets.length > 1 && packet.startTimeMuS < packets[packets.length - 2].endTimeMuS) {
-      packets.sort((a, b) => a.startTimeMuS.compareTo(b.startTimeMuS));
+    if (packets.length > 1) {
+      if (packet.startTimeMuS < packets[packets.length - 2].endTimeMuS) {
+        packets.sort((a, b) => a.startTimeMuS.compareTo(b.startTimeMuS));
+      }
     }
     endTimeMuS = max(endTimeMuS, packet.endTimeMuS);
     final int cutoffMuS = endTimeMuS - maxHistoryMuS;
