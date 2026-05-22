@@ -56,10 +56,12 @@ class _StreamPainter extends CustomPainter {
   late DateTime _plotStartTime;
   late DateTime _plotEndTime;
   late int _plotStartTimeInMicroSeconds;
+  late int _plotEndTimeInMicroSeconds;
   //late double mInverseSpatialWidth;
   late double mPlotWidth;
   late double _transformSpaceToTimeInMicroseconds;
   late double _transformTimeInMicroSecondsToSpace;
+  late double _transformDataToGrid;
 
   _StreamPainter(this.mPlotOptions, this._mStream);
 
@@ -77,13 +79,15 @@ class _StreamPainter extends CustomPainter {
 
     //var stream = createRandomStream();
 
-    double height = 220;
+    double height = size.height;
     double width = size.width; 
     int plotWindowMicroSeconds = mPlotOptions.plotDuration.inMicroseconds;
     final endTime = DateTime.now();
     final endTimeMicroSeconds = endTime.microsecondsSinceEpoch;
-    _plotStartTimeInMicroSeconds = endTimeMicroSeconds - plotWindowMicroSeconds;
-
+    _plotStartTimeInMicroSeconds
+      = endTimeMicroSeconds - plotWindowMicroSeconds;
+    _plotEndTimeInMicroSeconds
+      = _plotStartTimeInMicroSeconds + plotWindowMicroSeconds;
     _transformTimeInMicroSecondsToSpace = 1;
     if (mPlotOptions.plotDuration.inMicroseconds > 0) {
       _transformTimeInMicroSecondsToSpace
@@ -94,10 +98,16 @@ class _StreamPainter extends CustomPainter {
     _plotStartTime
       = DateTime.fromMicrosecondsSinceEpoch(_plotStartTimeInMicroSeconds);
     _plotEndTime
-      = DateTime.fromMicrosecondsSinceEpoch(
-          _plotStartTimeInMicroSeconds + plotWindowMicroSeconds 
-        );
+      = DateTime.fromMicrosecondsSinceEpoch(_plotEndTimeInMicroSeconds);
 
+    var minMaxData
+     = _mStream.getMinimumAndMaximumInTimeRange(_plotStartTimeInMicroSeconds,
+                                                _plotEndTimeInMicroSeconds);
+    print(minMaxData);
+    double dataRange = minMaxData.y - minMaxData.x;
+    if (dataRange != 0) {
+      _transformDataToGrid = height/dataRange;
+    }
 
     // Draw the background
     final plotOptions = PlotOptions(backgroundColor: Colors.grey);
@@ -240,20 +250,27 @@ class _StreamPainter extends CustomPainter {
 
   void drawPacket(Canvas canvas, double width, double height, Packet packet) {
     var path = Path(); 
+    var halfHeight = 0.5*height.toDouble();
+    var fillScale = 0.9;
+    var transformScalar = fillScale*_transformDataToGrid;
     for (var i = 0; i < packet.data.length - 1; i++) {
       var t0 = packet.startTimeMuS + i*packet.samplingPeriodInMicroSeconds;
       var t1 = t0 + packet.samplingPeriodInMicroSeconds;
       double x0 = timeInMicroSecondsToX(t0); 
       double x1 = timeInMicroSecondsToX(t1);
-      double y0 = 50 - packet.data[i]/2;
-      double y1 = 50 - packet.data[i + 1]/2;
+      double v0 = packet.data[i];
+      double v1 = packet.data[i + 1];
+      double y0 = halfHeight - v0*transformScalar;
+      double y1 = halfHeight - v1*transformScalar;
+      //double y0 = 50 - packet.data[i]/2;
+      //double y1 = 50 - packet.data[i + 1]/2;
       path.moveTo(x0, y0);
       path.lineTo(x1, y1);
     }
     final linePaint = Paint()
       ..style = PaintingStyle.stroke
       ..color = Colors.black
-      ..isAntiAlias = false
+      ..isAntiAlias = true //false
       ..strokeWidth = 1;
     canvas.drawPath(path, linePaint);
   }

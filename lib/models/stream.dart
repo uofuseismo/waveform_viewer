@@ -39,6 +39,24 @@ class Stream {
       endTimeMuS = 0;
     }
   }
+
+  Float64x2 getMinimumAndMaximumInTimeRange(int t0MuS, int t1MuS) {
+    double minValue = 0; 
+    double maxValue = 0;
+    for (var packet in packets) {
+      try {
+         var pMinMax = packet.getMinimumAndMaximumInTimeRange(t0MuS, t1MuS);
+         if (pMinMax != null) {
+           minValue = min(minValue, pMinMax.x);
+           maxValue = max(maxValue, pMinMax.y);
+         }
+      }
+      catch (e) {
+        print('$e');
+      }
+    }
+    return Float64x2(minValue, maxValue);
+  }
 }
 
 Stream createRandomStream() {
@@ -61,7 +79,8 @@ Stream createRandomStream() {
     var samples = Float64List(nSamples);
     var packetStartTime = startTimeMicroSeconds + i*dtMicroSeconds;
     for (var s = 0; s < nSamples; s++) {
-      samples[s] = rng.nextDouble()*100 - 200;
+      // Value >= 0 and < 1 
+      samples[s] = 100*(2*rng.nextDouble() - 1);
       i = i + 1;
     }
     var packet = Packet(packetStartTime.round(), samplingRateHz, samples);
