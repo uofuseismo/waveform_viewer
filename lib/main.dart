@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import './views/stream_painter.dart';
+//import './native/native_bridge.dart';
 
 
 void main() {
@@ -33,6 +34,10 @@ class MyApp extends StatelessWidget {
         colorScheme: .fromSeed(seedColor: Colors.red),
       ),
       home: Scaffold(
+        appBar: AppBar(
+          //title: Text('native sum(3, 4) = ${NativeBridge.sum(3, 4)}'),
+          title: Text('native sum(3, 4)'),
+        ),
         body: SizedBox(
           width: double.infinity,
           height: double.infinity,
