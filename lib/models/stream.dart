@@ -20,6 +20,18 @@ class Stream {
     packets.sort( (a, b) => a.startTimeMuS.compareTo(b.startTimeMuS) );
   }
 
+  void addPacket(Packet packet, {int maxHistoryMuS = 5 * 60 * 1000000}) {
+    if (packet.data.isEmpty) return;
+    packets.add(packet);
+    if (packets.length > 1 && packet.startTimeMuS < packets[packets.length - 2].endTimeMuS) {
+      packets.sort((a, b) => a.startTimeMuS.compareTo(b.startTimeMuS));
+    }
+    endTimeMuS = max(endTimeMuS, packet.endTimeMuS);
+    final int cutoffMuS = endTimeMuS - maxHistoryMuS;
+    packets.removeWhere((p) => p.endTimeMuS < cutoffMuS);
+    startTimeMuS = packets.isNotEmpty ? packets.first.startTimeMuS : endTimeMuS;
+  }
+
   void _findStartAndEndTime() {
     if (packets.isNotEmpty) {
       startTimeMuS = packets[0].startTimeMuS;
@@ -57,6 +69,18 @@ class Stream {
     }
     return Float64x2(minValue, maxValue);
   }
+}
+
+Packet createNextPacket(int startTimeMuS, double samplingRateHz, int durationMuS) {
+  final double dtMuS = 1000000.0 / samplingRateHz;
+  final int nSamples = (durationMuS / dtMuS).floor();
+  final samples = Float64List(nSamples);
+  final rng = Random();
+  final double amplitude = 50.0 + rng.nextDouble() * 100.0;
+  for (var i = 0; i < nSamples; i++) {
+    samples[i] = amplitude * (2 * rng.nextDouble() - 1);
+  }
+  return Packet(startTimeMuS, samplingRateHz, samples);
 }
 
 Stream createRandomStream() {

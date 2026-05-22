@@ -1,4 +1,5 @@
-import 'dart:ui';
+import 'dart:async' show Timer;
+import 'dart:ui' as ui_para;
 import 'package:flutter/material.dart';
 import '../models/data_layer.dart';
 
@@ -22,30 +23,45 @@ class PlotOptions {
 }
 
 class StreamPainter extends StatefulWidget {
-  const StreamPainter({super.key});
+  final Color backgroundColor;
+  const StreamPainter({super.key, this.backgroundColor = Colors.white});
 
   @override
-  State createState() => _StreamPainterState(); 
+  State createState() => _StreamPainterState();
 }
 
 class _StreamPainterState extends State<StreamPainter> {
+  static const _redrawInterval = Duration(seconds: 3);
+
   late PlotOptions mPlotOptions;
   late Stream mStream;
+  Timer? _redrawTimer;
 
   @override
   void initState() {
     super.initState();
-    setState( () {
-      mPlotOptions = PlotOptions();
-      mStream = createRandomStream();
+    mPlotOptions = PlotOptions(backgroundColor: widget.backgroundColor);
+    mStream = createRandomStream();
+    _redrawTimer = Timer.periodic(_redrawInterval, (_) {
+      final startTimeMuS = DateTime.now().microsecondsSinceEpoch
+          - _redrawInterval.inMicroseconds;
+      final packet = createNextPacket(startTimeMuS, 100.0,
+          _redrawInterval.inMicroseconds);
+      setState(() => mStream.addPacket(packet));
     });
   }
+
+  @override
+  void dispose() {
+    _redrawTimer?.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 600,
-      height: 200,
-      child: CustomPaint(painter: _StreamPainter(mPlotOptions, mStream)),
+    return CustomPaint(
+      painter: _StreamPainter(mPlotOptions, mStream),
+      size: Size.infinite,
     );
   }
 }
@@ -91,7 +107,7 @@ class _StreamPainter extends CustomPainter {
     _transformTimeInMicroSecondsToSpace = 1;
     if (mPlotOptions.plotDuration.inMicroseconds > 0) {
       _transformTimeInMicroSecondsToSpace
-       = mPlotWidth/mPlotOptions.plotDuration.inMicroseconds;
+        = mPlotWidth/mPlotOptions.plotDuration.inMicroseconds;
     }
 
 
@@ -110,8 +126,7 @@ class _StreamPainter extends CustomPainter {
     }
 
     // Draw the background
-    final plotOptions = PlotOptions(backgroundColor: Colors.grey);
-    drawBackground(canvas, width, height, plotOptions);
+    drawBackground(canvas, width, height, mPlotOptions);
 
     // Draw the stream name
     drawStreamName(canvas, height, _mStream.streamIdentifier);
@@ -126,7 +141,7 @@ class _StreamPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(CustomPainter oldDelegate) {
-    return false;
+    return true;
   }
 
   void drawMajorTicks(Canvas canvas, double width, double height, int nTicks) {
@@ -176,11 +191,10 @@ class _StreamPainter extends CustomPainter {
       ticksPath.lineTo(xOffset, height - tickHeight);
 
       if (addTimeLabel && i < nTicks - 1) {
-        final textStyle = TextStyle(color: Colors.black);
-        final paragraphConstraints = ParagraphConstraints(width: 50);
-        final paragraphStyle = ParagraphStyle(fontSize: 12, textAlign: TextAlign.left);
-        var paragraphBuilder = ParagraphBuilder(paragraphStyle);
-        //paragraphBuilder.pushStyle(textStyle);
+        final paragraphConstraints = ui_para.ParagraphConstraints(width: 50);
+        final paragraphStyle = ui_para.ParagraphStyle(fontSize: 12, textAlign: TextAlign.left);
+        var paragraphBuilder = ui_para.ParagraphBuilder(paragraphStyle);
+        paragraphBuilder.pushStyle(ui_para.TextStyle(color: Colors.black));
 
         var tickTimeInMicroseconds = xToTimeInMicroseconds(xOffset); 
         var tickTime = DateTime.fromMicrosecondsSinceEpoch(tickTimeInMicroseconds);
@@ -227,13 +241,10 @@ class _StreamPainter extends CustomPainter {
       //if (text.isEmpty){return;}
       const double xOffset = 10;
       var yOffset = height*0.1;
-      final paragraphConstraints = ParagraphConstraints(width: 120);
-      final paragraphStyle
-        = ParagraphStyle(fontSize: 15,
-                         textAlign: TextAlign.left,
-                        );
-      var paragraphBuilder = ParagraphBuilder(paragraphStyle);
-
+      final paragraphConstraints = ui_para.ParagraphConstraints(width: 120);
+      final paragraphStyle = ui_para.ParagraphStyle(fontSize: 15, textAlign: TextAlign.left);
+      var paragraphBuilder = ui_para.ParagraphBuilder(paragraphStyle);
+      paragraphBuilder.pushStyle(ui_para.TextStyle(color: Colors.black));
       paragraphBuilder.addText(text);
       var paragraph = paragraphBuilder.build(); 
       paragraph.layout(paragraphConstraints);

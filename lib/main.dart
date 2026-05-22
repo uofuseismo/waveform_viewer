@@ -32,7 +32,20 @@ class MyApp extends StatelessWidget {
         // tested with just a hot reload.
         colorScheme: .fromSeed(seedColor: Colors.red),
       ),
-      home: StreamPainter(key: super.key), //const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: Scaffold(
+        body: SizedBox(
+          width: double.infinity,
+          height: double.infinity,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: List.generate(3, (i) => Expanded(
+              child: StreamPainter(
+                backgroundColor: i % 2 == 0 ? Colors.white : Colors.grey,
+              ),
+            )),
+          ),
+        ),
+      ),
     );
   }
 }
